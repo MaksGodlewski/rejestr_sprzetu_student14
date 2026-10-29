@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Nowe wypożyczenie</h2>
+  {% if available %}
+  <form class="inline" method="post" action="{{ url_for('create_loan') }}">
+    <label>Sprzęt
+      <select name="equipment_id">
+        {% for e in available %}
+        <option value="{{ e.id }}">{{ e.name }} ({{ e.inventory_no }})</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Osoba wypożyczająca <input name="borrower_name" required maxlength="120"></label>
+    <label>Kontakt <input name="borrower_contact" maxlength="120"></label>
+    <label>Planowany zwrot <input type="date" name="due_date"></label>
+    <button type="submit">Wypożycz</button>
+  </form>
+  {% else %}
+  <p>Brak dostępnego sprzętu.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Aktywne wypożyczenia</h2>
+  <table>
+    <tr><th>Sprzęt</th><th>Osoba</th><th>Wypożyczono</th><th>Planowany zwrot</th><th></th></tr>
+    {% for l in active %}
+    <tr>
+      <td>{{ l.name }} ({{ l.inventory_no }})</td>
+      <td>{{ l.borrower_name }}{% if l.borrower_contact %}<br><small>{{ l.borrower_contact }}</small>{% endif %}</td>
+      <td>{{ l.loaned_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>
+        {% if l.due_date %}{{ l.due_date }}
+          {% if l.due_date < today %}<span class="badge overdue">po terminie</span>{% endif %}
+        {% else %}-{% endif %}
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('return_loan', loan_id=l.id) }}">
+          <button class="small" type="submit">Zwrot</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">Brak aktywnych wypożyczeń.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Historia (ostatnie 50)</h2>
+  <table>
+    <tr><th>Sprzęt</th><th>Osoba</th><th>Wypożyczono</th><th>Zwrócono</th></tr>
+    {% for l in history %}
+    <tr>
+      <td>{{ l.name }} ({{ l.inventory_no }})</td><td>{{ l.borrower_name }}</td>
+      <td>{{ l.loaned_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ l.returned_at.strftime('%Y-%m-%d %H:%M') }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4">Historia jest pusta.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

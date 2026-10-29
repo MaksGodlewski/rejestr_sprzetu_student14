@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Dodaj sprzęt</h2>
+  <form class="inline" method="post" action="{{ url_for('add_equipment') }}">
+    <label>Nazwa <input name="name" required maxlength="120"></label>
+    <label>Kategoria
+      <select name="category">
+        {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Nr inwentarzowy <input name="inventory_no" required maxlength="40"></label>
+    <button type="submit">Dodaj</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Katalog sprzętu</h2>
+  <p>Filtr:
+    <a href="{{ url_for('index') }}">wszystkie</a> |
+    <a href="{{ url_for('index', status='available') }}">dostępne</a> |
+    <a href="{{ url_for('index', status='loaned') }}">wypożyczone</a>
+  </p>
+  <table>
+    <tr><th>Nr inw.</th><th>Nazwa</th><th>Kategoria</th><th>Status</th></tr>
+    {% for i in items %}
+    <tr>
+      <td>{{ i.inventory_no }}</td><td>{{ i.name }}</td><td>{{ i.category }}</td>
+      <td><span class="badge {{ i.status }}">
+        {{ 'dostępny' if i.status == 'available' else 'wypożyczony' }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4">Brak sprzętu w katalogu.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}
