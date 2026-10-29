@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    name: Kontrola kodu i testy
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: rejestr
+          POSTGRES_USER: rejestr
+          POSTGRES_PASSWORD: testpass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rejestr"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_NAME: rejestr
+      DB_USER: rejestr
+      DB_PASSWORD: testpass
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: flake8
+        run: flake8 .
+      - name: pytest
+        run: pytest -v
+
+  docker:
+    name: Budowanie obrazu i test kontenerów
+    needs: lint-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Hadolint (kontrola Dockerfile)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          ignore: DL3008
+
+      - name: Przygotuj .env
+        run: cp .env.example .env
+
+      - name: Walidacja compose.yaml
+        run: docker compose config -q
+
+      - name: Budowanie obrazu
+        run: docker compose build
+
+      - name: Uruchom stos (web + db)
+        run: docker compose up -d --wait --wait-timeout 120
+
+      - name: Test dymny
+        run: |
+          curl -fsS http://localhost:8000/health
+          curl -fsS -L -o /dev/null -d "name=Test&category=laptop&inventory_no=CI-1" \
+            http://localhost:8000/equipment
+          curl -fsS http://localhost:8000/api/equipment | grep CI-1
+
+      - name: Test trwałości danych (restart bazy)
+        run: |
+          docker compose restart db
+          docker compose up -d --wait --wait-timeout 120
+          curl -fsS http://localhost:8000/api/equipment | grep CI-1
+
+      - name: Logi przy błędzie
+        if: failure()
+        run: docker compose logs
+
+      - name: Sprzątanie
+        if: always()
+        run: docker compose down -v
+
+      - name: Ustal nazwę obrazu
+        if: github.ref == 'refs/heads/main'
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Logowanie do GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publikacja obrazu w GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
