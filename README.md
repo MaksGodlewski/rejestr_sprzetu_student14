@@ -3,6 +3,10 @@
 Aplikacja webowa do ewidencji wypożyczeń laptopów, projektorów i innych urządzeń.
 Projekt końcowy: Specjalizacja DevSecOps – kontenery i automatyzacja (Docker + GitHub).
 
+**Dokumentacja projektu:** 
+[Dokumentacja_projektu_Student14.pdf]
+(Dokumentacja_projektu_Student14.pdf)
+
 ## Funkcjonalności
 - dodawanie sprzętu do katalogu (nazwa, kategoria, numer inwentarzowy),
 - rejestrowanie osoby wypożyczającej (imię i nazwisko, kontakt),
